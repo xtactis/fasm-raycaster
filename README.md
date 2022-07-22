@@ -6,7 +6,7 @@ I've never done anything more than hello world in x86/x64 assembly so this will 
 
 - Part 1: crude 3D renderings
     - [x] Step 1: save an image to disk [final commit](https://github.com/xtactis/fasm-raycaster/tree/039691fbebe27b36a592f270c19cd438ff648f71)
-    - [ ] Step 2: draw the map
+    - [x] Step 2: draw the map [final commit](https://github.com/xtactis/fasm-raycaster/tree/8f43284b93cefa530d9485f72e030cdc011bf0cb)
     - [ ] Step 3: add the player
     - [ ] Step 4: virtual rangefinder aka first raycasting
     - [ ] Step 5: field of view
