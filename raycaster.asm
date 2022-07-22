@@ -34,9 +34,11 @@ include 'unistd64.inc'
 ; program
 entry _start
 _start:
-    call color_frame_buffer
+    finit
 
+    call color_frame_buffer
     call draw_map
+    call draw_player
 
     lea rdi, [image_file_path]
     call write_to_file
@@ -44,6 +46,32 @@ _start:
     xor rdi, rdi ; set exit code to 0
     mov rax, sys_exit
     syscall
+
+draw_player:
+    push rax
+    ; player_x * rect_w
+    fld [player_x]
+    sub rsp, 8 ; allocate 8 bytes for a variable
+    mov qword [rsp], rect_w
+    fimul dword [rsp]
+    fistp qword [rsp]
+    pop rax
+
+    ; player_y * rect_h
+    fld [player_y]
+    sub rsp, 8 ; allocate 8 bytes for a variable
+    mov qword [rsp], rect_h
+    fimul dword [rsp]
+    fistp qword [rsp]
+    pop rbx
+
+    mov rcx, player_w
+    mov rdx, player_h
+    mov rdi, player_color
+
+    call draw_rectangle
+    pop rax
+    ret
 
 draw_map:
     push r15
@@ -73,6 +101,9 @@ draw_map:
             imul rax, rect_w
             mov rbx, r15
             imul rbx, rect_h
+            mov rcx, rect_w
+            mov rdx, rect_h
+            mov rdi, rect_color
 
             call draw_rectangle
 
@@ -94,6 +125,9 @@ draw_rectangle:
     push r14
     push rax
     push rbx
+    push rcx ; width
+    push rdx ; height
+    push rdi ; color
     push r10
     push r11
     mov r10, rax ; horizontal position
@@ -101,20 +135,20 @@ draw_rectangle:
 
     mov r15, 0
     .outer:
-        cmp r15, rect_w
+        cmp r15, rcx
         jge .outer_end
         mov r14, 0
         @@:
-            cmp r14, rect_h
+            cmp r14, rdx
             jge @f
 
             mov rax, r10
             add rax, r15
             mov rbx, r11
             add rbx, r14
-            imul rax, win_w
+            imul rbx, win_h
             add rax, rbx
-            mov [frame_buffer+8*rax], rect_color
+            mov [frame_buffer+8*rax], rdi
 
             inc r14
             jmp @b
@@ -125,6 +159,9 @@ draw_rectangle:
 
     pop r11
     pop r10
+    pop rdi
+    pop rdx
+    pop rcx
     pop rbx
     pop rax
     pop r14
@@ -339,7 +376,14 @@ segment readable writeable ; data
     rect_w = win_w / map_w
     rect_h = win_h / map_h
     ;            red          green         blue
-    rect_color = (0 shl 0) + (255 shl 8) + (255 shl 16)
+    rect_color = (0 shl 0) + (255 shl 8) + (255 shl 16) ; cyan
+
+    player_x dq 3.420
+    player_y dq 2.345
+    player_w = 5
+    player_h = 5
+    ;              red           green         blue
+    player_color = (255 shl 0) + (255 shl 8) + (255 shl 16) ; white
 
     image_file_path db 'image_file.ppm', 0
     image_file_path.size = $ - image_file_path - 1
