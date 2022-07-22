@@ -34,7 +34,7 @@ jobs:
       - name: build program
         run: |
           cd $GITHUB_WORKSPACE
-          ~/fasm.x64 raycaster.asm
+          ~/fasm/fasm.x64 raycaster.asm
       
       - name: runs the program once
         run: |
