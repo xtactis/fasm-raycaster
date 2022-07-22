@@ -28,8 +28,8 @@ jobs:
       - name: Download FASM
         run: |
           cd
-          wget https://flatassembler.net/fasm-1.73.30.tgz --tries=1 || wget https://fossies.org/linux/misc/fasm-1.73.30.tgz --tries=1
-          tar -cvzf fasm-1.73.30.tgz
+          wget https://flatassembler.net/fasm-1.73.30.tgz --tries=1 --timeout=30 || wget https://fossies.org/linux/misc/fasm-1.73.30.tgz --tries=1 --timeout=30
+          tar -xvf fasm-1.73.30.tgz
           
       - name: build program
         run: |
