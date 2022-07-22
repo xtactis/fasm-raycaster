@@ -1,8 +1,22 @@
+![build badge](https://github.com/xtactis/fasm-raycaster/actions/workflows/main.yml/badge.svg)
+
 # FASM Raycaster
 
 FASM implementation of https://github.com/ssloy/tinyraycaster/wiki
 
 I've never done anything more than hello world in x86/x64 assembly so this will either never be completed, or will be a complete trashfire by the end. Or both! Hopefully just the latter tho!
+
+## How to run
+
+At the moment I'm only building this for Linux and making Linux specific system calls. I might go insane and try to make it crossplatform when I'm done, but don't expect much.
+
+1. Download [FASM](https://flatassembler.net/download.php)
+2. Unpack it somewhere where you can access fasm.x64
+3. Run `fasm.x64 raycaster.asm`
+4. Check that the `image_file.ppm` file contains something interesting
+5. T-that's it.
+
+## Progress
 
 - Part 1: crude 3D renderings
     - [x] Step 1: save an image to disk [final commit](https://github.com/xtactis/fasm-raycaster/tree/039691fbebe27b36a592f270c19cd438ff648f71)
