@@ -93,8 +93,9 @@ write_to_file:
     push rsi
     push rdx
 
-    mov rsi, 1 ; write only
     mov rax, sys_open
+    mov rsi, 1 or 0100o ; create and write
+    mov rdx, 644o ; umode, owner: read+write, group: read, others: read
     syscall
 
     mov rdi, rax
@@ -161,18 +162,20 @@ color_frame_buffer:
             cmp r14, win_w
             jge @f
 
-            mov rax, 255
-            mul r15
+            mov rax, r15
+            imul rax, 255
             mov rbx, win_h
             xor rdx, rdx
             div rbx
             mov r13, rax
 
-            imul r14, 255
+            mov rax, r14
+            imul rax, 255
+            mov rbx, win_w
             xor rdx, rdx
-            idiv r14, win_w
-            shl r14, 8
-            add r13, r14
+            div rbx
+            shl rax, 8
+            add r13, rax
 
             mov rax, r15
             imul rax, win_w
