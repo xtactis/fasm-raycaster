@@ -1,6 +1,4 @@
-![build badge](https://github.com/xtactis/fasm-raycaster/actions/workflows/main.yml/badge.svg)
-
-# FASM Raycaster
+# FASM Raycaster ![build badge](https://github.com/xtactis/fasm-raycaster/actions/workflows/main.yml/badge.svg)
 
 FASM implementation of https://github.com/ssloy/tinyraycaster/wiki
 
