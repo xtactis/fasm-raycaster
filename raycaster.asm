@@ -2,7 +2,7 @@ format ELF64 executable 3
 
 segment readable executable ; code
 
-macro puts_static string {
+macro puts_static string* {
     push rdx
     push rsi
     push rdi
@@ -36,12 +36,100 @@ entry _start
 _start:
     call color_frame_buffer
 
+    call draw_map
+
     lea rdi, [image_file_path]
     call write_to_file
 
     xor rdi, rdi ; set exit code to 0
     mov rax, sys_exit
     syscall
+
+draw_map:
+    push r15
+    push r14
+    push rax
+    push rbx
+    mov r15, 0
+    .outer:
+        cmp r15, map_h
+        jge .outer_end
+        mov r14, 0
+        @@:
+            cmp r14, map_w
+            jge @f
+
+            mov rax, r15
+            imul rax, map_w
+            add rax, r14
+            mov al, [map+rax]
+            cmp al, ' '
+            jne .good
+            inc r14
+            jmp @b
+            .good:
+
+            mov rax, r14
+            imul rax, rect_w
+            mov rbx, r15
+            imul rbx, rect_h
+
+            call draw_rectangle
+
+            inc r14
+            jmp @b
+        @@:
+        inc r15
+        jmp .outer
+    .outer_end:
+
+    pop rbx
+    pop rax
+    pop r14
+    pop r15
+    ret
+
+draw_rectangle:
+    push r15
+    push r14
+    push rax
+    push rbx
+    push r10
+    push r11
+    mov r10, rax ; horizontal position
+    mov r11, rbx ; vertical position
+
+    mov r15, 0
+    .outer:
+        cmp r15, rect_w
+        jge .outer_end
+        mov r14, 0
+        @@:
+            cmp r14, rect_h
+            jge @f
+
+            mov rax, r10
+            add rax, r15
+            mov rbx, r11
+            add rbx, r14
+            imul rax, win_w
+            add rax, rbx
+            mov [frame_buffer+8*rax], rect_color
+
+            inc r14
+            jmp @b
+        @@:
+        inc r15
+        jmp .outer
+    .outer_end:
+
+    pop r11
+    pop r10
+    pop rbx
+    pop rax
+    pop r14
+    pop r15
+    ret
 
 ; params
 ; rax -> value to print
@@ -228,6 +316,31 @@ segment readable writeable ; data
     int_buf.size = $ - int_buf
     ppm_buffer rb ppm_buffer_size ; 512*512*3
     
+    map_w = 16
+    map_h = 16
+    map db "0000222222220000",\
+           "1              0",\
+           "1      11111   0",\
+           "1     0        0",\
+           "0     0  1110000",\
+           "0     3        0",\
+           "0   10000      0",\
+           "0   0   11100  0",\
+           "0   0   0      0",\
+           "0   0   1  00000",\
+           "0       1      0",\
+           "2       1      0",\
+           "0       0      0",\
+           "0 0000000      0",\
+           "0              0",\
+           "0002222222200000", 0
+    map.size = $ - map
+
+    rect_w = win_w / map_w
+    rect_h = win_h / map_h
+    ;            red          green         blue
+    rect_color = (0 shl 0) + (255 shl 8) + (255 shl 16)
+
     image_file_path db 'image_file.ppm', 0
     image_file_path.size = $ - image_file_path - 1
     ppm_header db 'P6', 10, '512 512', 10, '255', 10, 0
