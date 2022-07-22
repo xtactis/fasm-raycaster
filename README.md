@@ -5,7 +5,7 @@ FASM implementation of https://github.com/ssloy/tinyraycaster/wiki
 I've never done anything more than hello world in x86/x64 assembly so this will either never be completed, or will be a complete trashfire by the end. Or both! Hopefully just the latter tho!
 
 - Part 1: crude 3D renderings
-    - [x] Step 1: save an image to disk
+    - [x] Step 1: save an image to disk [final commit](https://github.com/xtactis/fasm-raycaster/tree/2520995b492573874291f94a2fe37db7e8e7aeda)
     - [ ] Step 2: draw the map
     - [ ] Step 3: add the player
     - [ ] Step 4: virtual rangefinder aka first raycasting
