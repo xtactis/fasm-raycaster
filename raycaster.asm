@@ -163,7 +163,7 @@ draw_ray:
     mov [.loop_iterator], rax
     mov rax, 20.0
     mov [.loop_end], rax
-    mov rax, 0.05
+    mov rax, 0.01
     mov [.loop_step], rax
     
 
@@ -200,6 +200,7 @@ draw_ray:
         mov al, [map+rax]
         cmp al, ' '
         je .continue
+            mov cl, al
             mov rax, r15 ; r15 is the iterator in draw_visibility_cone
             mov rbx, qword [.loop_iterator]
             call draw_vertical_segment
@@ -244,9 +245,10 @@ draw_vertical_segment:
     shr rbx, 1
     neg rbx
     add rbx, win_h/2
+    sub cl, '0'
+    mov edi, [wall_colors+4*rcx]
     mov rcx, 1
     mov rdx, r15
-    mov rdi, wall_color
     call draw_rectangle
 
     pop r15
@@ -320,13 +322,14 @@ draw_map:
                 jmp @b
             .good:
 
+            sub al, '0'
+            mov edi, [wall_colors+4*rax]
             mov rax, r14
             imul rax, rect_w
             mov rbx, r15
             imul rbx, rect_h
             mov rcx, rect_w
             mov rdx, rect_h
-            mov rdi, rect_color
 
             call draw_rectangle
 
@@ -374,6 +377,10 @@ draw_rectangle:
             add rbx, r14
             imul rbx, win_w
             add rax, rbx
+
+            cmp rax, frame_buffer_size
+            jge @f
+
             mov [frame_buffer+8*rax], rdi
 
             inc r14
@@ -647,7 +654,8 @@ segment readable writeable ; data
     rect_w = win_w / (map_w*2)
     rect_h = win_h / map_h
     rect_color = cyan
-    wall_color = cyan
+    wall_colors dd light_beige, dark_purple, dark_blue, dark_red
+    wall_colors.length = $ - wall_colors
 
     player_x dq 3.420
     player_y dq 2.345
