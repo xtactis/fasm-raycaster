@@ -47,13 +47,31 @@ macro fistp_reg reg* {
     pop reg
 }
 
+macro fld_imm value* {
+    push rax
+    mov rax, value
+    push rax
+    fld qword [rsp]
+    add rsp, 8
+    pop rax
+}
+
+macro fild_imm value* {
+    push rax
+    mov rax, value
+    push rax
+    fild qword [rsp]
+    add rsp, 8
+    pop rax
+}
+
 macro fmul_imm value* {
     push qword value
     fmul qword [rsp]
     add rsp, 8
 }
 
-macro fmul_imm_int value* {
+macro fimul_imm value* {
     push qword value
     fild qword [rsp]
     fmulp
@@ -80,7 +98,7 @@ _start:
     call color_frame_buffer
     call draw_map
     call draw_player
-    call draw_ray
+    call draw_visibility_cone
 
     lea rdi, [image_file_path]
     call write_to_file
@@ -89,16 +107,53 @@ _start:
     mov rax, sys_exit
     syscall
 
+draw_visibility_cone:
+    push r15
+    push rax
+    sub rsp, 8*1
+    define .angle   rsp+8*0
+
+    mov r15, 0
+    @@: ; loop begin
+        cmp r15, win_w
+        jge @f
+        
+        fld qword [player_a]
+        fld_imm player_fov
+        fild_imm 2
+        fdivp st1, st0
+        fsubp st1, st0
+        fld_imm player_fov
+        fild_imm r15
+        fild_imm win_w
+        fdivp st1, st0
+        fmulp st1, st0
+        faddp
+        fstp qword [.angle]
+        mov rax, [.angle]
+        call draw_ray
+
+        inc r15
+        jmp @b
+    @@: ; loop end
+
+    add rsp, 8*1
+    pop rax
+    pop r15
+    ret
+
+; expects the angle in rax as a 64 bit float
 draw_ray:
     push rax
     push rbx
-
-    sub rsp, 8*5 
-    define .loop_iterator    rsp+8*4
-    define .loop_end         rsp+8*3
-    define .loop_step        rsp+8*2
-    define .pos_x            rsp+8*1
-    define .pos_y            rsp+8*0
+    sub rsp, 8*6
+    define .angle           rsp+8*5
+    define .loop_iterator   rsp+8*4
+    define .loop_end        rsp+8*3
+    define .loop_step       rsp+8*2
+    define .pos_x           rsp+8*1
+    define .pos_y           rsp+8*0
+    mov [.angle], rax
     mov rax, 0.0
     mov [.loop_iterator], rax
     mov rax, 20.0
@@ -106,7 +161,8 @@ draw_ray:
     mov rax, 0.05
     mov [.loop_step], rax
     
-    @@:
+
+    @@: ; loop begin
         fld qword [.loop_iterator]
         fld qword [.loop_end]
         fcomp ; compare ST0 and ST1 which are 20.0 and 0.0 respectively
@@ -117,15 +173,15 @@ draw_ray:
         jpe float_error_handler
         jl @f
 
-        ; pos_x = player_x + .loop_iterator*cos(player_a);
-        fld [player_a]
+        ; pos_x = player_x + .loop_iterator*cos(.angle);
+        fld qword [.angle]
         fcos
         fmul qword [.loop_iterator]
         fadd [player_x]
         fstp qword [.pos_x]
         
-        ; pos_y = player_y + .loop_iterator*sin(player_a);
-        fld [player_a]
+        ; pos_y = player_y + .loop_iterator*sin(.angle);
+        fld qword [.angle]
         fsin
         fmul qword [.loop_iterator]
         fadd [player_y]
@@ -141,22 +197,22 @@ draw_ray:
         jne @f ; break
 
         fld qword [.pos_x]
-        fmul_imm_int rect_w
+        fimul_imm rect_w
         fld qword [.pos_y]
-        fmul_imm_int rect_w
+        fimul_imm rect_w
         fistp_reg rbx
         fistp_reg rax
         imul rbx, win_w
         add rax, rbx
         mov [frame_buffer+8*rax], player_color
-
+        
         fld qword [.loop_iterator]
         fadd qword [.loop_step]
         fstp qword [.loop_iterator]
         jmp @b
-    @@:
+    @@: ; loop end
 
-    add rsp, 8*5
+    add rsp, 8*6
     pop rbx
     pop rax
     ret
@@ -201,7 +257,7 @@ draw_map:
         cmp r15, map_h
         jge .outer_end
         mov r14, 0
-        @@:
+        @@: ; loop begin
             cmp r14, map_w
             jge @f
 
@@ -227,7 +283,7 @@ draw_map:
 
             inc r14
             jmp @b
-        @@:
+        @@: ; loop end
         inc r15
         jmp .outer
     .outer_end:
@@ -256,7 +312,7 @@ draw_rectangle:
         cmp r15, rcx
         jge .outer_end
         mov r14, 0
-        @@:
+        @@: ; loop begin
             cmp r14, rdx
             jge @f
 
@@ -270,7 +326,7 @@ draw_rectangle:
 
             inc r14
             jmp @b
-        @@:
+        @@: ; loop end
         inc r15
         jmp .outer
     .outer_end:
@@ -303,7 +359,7 @@ print_int:
     mov [int_buf+63], 0
     mov [int_buf+62], 10
     mov r15, 61
-    @@:
+    @@: ; loop begin
         cmp rax, 0
         je @f
         xor rdx, rdx
@@ -313,7 +369,7 @@ print_int:
         mov [int_buf+r15], dl
         dec r15
         jmp @b
-    @@:
+    @@: ; loop end
     inc r15
     mov rdi, 1
     lea rsi, [int_buf+r15]
@@ -367,7 +423,7 @@ fill_ppm_buffer:
     push r14
     mov r15, 0
     mov r14, 0
-    @@:
+    @@: ; loop begin
         cmp r15, ppm_buffer_size
         je @f
         mov rax, [frame_buffer+8*r14]
@@ -382,7 +438,7 @@ fill_ppm_buffer:
 
         inc r14
         jmp @b
-    @@:
+    @@: ; loop end
     pop r14
     pop r15
     pop rax
@@ -401,7 +457,7 @@ color_frame_buffer:
         cmp r15, win_h
         jge .outer_end
         mov r14, 0
-        @@:
+        @@: ; loop begin
             cmp r14, win_w
             jge @f
 
@@ -427,7 +483,7 @@ color_frame_buffer:
 
             inc r14
             jmp @b
-        @@:
+        @@: ; loop end
         inc r15
         jmp .outer
     .outer_end:
@@ -445,13 +501,13 @@ memset:
     push rbx
     
     mov rax, rcx
-    @@:
+    @@: ; loop begin
         cmp rax, 0
         jle @f
         mov [frame_buffer+rax], rbx
         sub rax, 1
         jmp @b
-    @@:
+    @@: ; loop end
 
     pop rbx
     pop rcx
@@ -504,9 +560,10 @@ segment readable writeable ; data
 
     player_x dq 3.420
     player_y dq 2.345
-    player_a dq 1.523
     player_w = 5
     player_h = 5
+    player_a dq 1.523
+    player_fov = 1.0471975512 ; PI/3
     ;              red           green         blue
     player_color = (255 shl 0) + (255 shl 8) + (255 shl 16) ; white
 
