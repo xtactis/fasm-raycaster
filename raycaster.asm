@@ -112,7 +112,7 @@ animate:
     
     mov r15, 0
     @@:
-        cmp r15, 360
+        cmp r15, 1
         jge @f
 
         mov rax, clear_color
@@ -120,6 +120,9 @@ animate:
         call draw_map
         call draw_player
         call draw_visibility_cone
+
+        mov rax, 4
+        call draw_texture
 
         mov rax, r15
         call generate_animation_path
@@ -139,6 +142,64 @@ animate:
 
     pop r15
     pop rdi
+    pop rax
+    ret
+
+draw_texture:
+    push rax
+    push rbx
+    push rcx
+    push rdx
+    push r15
+    push r14
+
+    ; texture_index*texture_size+j+i*texture_width
+    ; texture_index*texture_size*+j+i*texture_size*texture_cnt
+    ; (texture_index+i*texture_cnt)*texture_size+j
+
+    mov r15, 0
+    .outer:
+        cmp r15, texture_size
+        jge .outer_end
+        
+        mov r14, 0
+        @@:
+            cmp r14, texture_size
+            jge @f
+
+            mov rcx, r15
+            imul rcx, texture_cnt
+            add rcx, rax
+            imul rcx, texture_size
+            add rcx, r14
+            imul rcx, 3
+            mov rbx, 0
+            mov dl, [wall_textures+rcx]
+            mov bl, dl
+            mov dl, [wall_textures+rcx+1]
+            mov bh, dl
+            mov dl, [wall_textures+rcx+2]
+            shl edx, 16
+            add ebx, edx
+
+            mov rcx, r15
+            imul rcx, win_w
+            add rcx, r14
+            mov [frame_buffer+8*rcx], rbx
+
+            inc r14
+            jmp @b
+        @@:
+
+        inc r15
+        jmp .outer
+    .outer_end:
+
+    pop r14
+    pop r15
+    pop rdx
+    pop rcx
+    pop rbx
     pop rax
     ret
 
@@ -742,6 +803,11 @@ segment readable writeable ; data
 
     float_error_msg db '[ERROR]: floating point error, crashing\n', 0
     float_error_msg.size = $ - float_error_msg - 1
+
+    wall_textures file 'walltext.ppm':0x0E
+    texture_size  = 64
+    texture_cnt   = 6
+    texture_width = texture_size*texture_cnt
 
     debug_str db '[DEBUG]: ', 0
     debug_str.size = $ - debug_str - 1
