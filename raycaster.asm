@@ -106,6 +106,10 @@ _start:
     syscall
 
 animate:
+    push rax
+    push rdi
+    push r15
+    
     mov r15, 0
     @@:
         cmp r15, 360
@@ -132,6 +136,10 @@ animate:
         inc r15
         jmp @b
     @@:
+
+    pop r15
+    pop rdi
+    pop rax
     ret
 
 generate_animation_path:
@@ -197,6 +205,8 @@ draw_visibility_cone:
 draw_ray:
     push rax
     push rbx
+    push rcx
+    push rdx
     sub rsp, 8*6
     define .angle           rsp+8*5
     define .loop_iterator   rsp+8*4
@@ -249,6 +259,7 @@ draw_ray:
             mov cl, al
             mov rax, r15 ; r15 is the iterator in draw_visibility_cone
             mov rbx, qword [.loop_iterator]
+            mov rdx, qword [.angle]
             call draw_vertical_segment
             jmp @f
         .continue:
@@ -270,6 +281,8 @@ draw_ray:
     @@: ; loop end
 
     add rsp, 8*6
+    pop rdx
+    pop rcx
     pop rbx
     pop rax
     ret
@@ -277,12 +290,17 @@ draw_ray:
 draw_vertical_segment:
     push rax ; pos_x : int
     push rbx ; dist : double
-    push rcx
-    push rdx
+    push rcx ; wall_type : char
+    push rdx ; angle : double
     push rdi
     push r15
     fild_imm win_h
     fld_imm rbx
+    fld_imm rdx
+    fld qword [player_a]
+    fsubp st1, st0
+    fcos
+    fmulp st1, st0
     fdivp st1, st0
     fistp_reg r15 ; segment_height : int
 
