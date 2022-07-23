@@ -99,11 +99,64 @@ _start:
     fldcw word [rsp]
     add rsp, 2
 
+    call read_texture_file
     call animate
 
     xor rdi, rdi ; set exit code to 0
     mov rax, sys_exit
     syscall
+
+read_texture_file:
+    push rax
+    push rbx
+    push rcx
+    push rdx
+    push r15
+    push r14
+
+    mov r15, 0
+    .outer:
+        cmp r15, texture_size
+        jge .outer_end
+        
+        mov r14, 0
+        @@:
+            cmp r14, texture_width
+            jge @f
+
+            mov rcx, r15
+            imul rcx, texture_width
+            add rcx, r14
+            imul rcx, 3
+            mov rbx, 0
+            mov dl, [wall_texture_file+rcx]
+            mov bl, dl
+            mov dl, [wall_texture_file+rcx+1]
+            mov bh, dl
+            mov dl, [wall_texture_file+rcx+2]
+            shl edx, 16
+            add ebx, edx
+
+            mov rcx, r15
+            imul rcx, texture_width
+            add rcx, r14
+            mov [textures+8*rcx], rbx
+
+            inc r14
+            jmp @b
+        @@:
+
+        inc r15
+        jmp .outer
+    .outer_end:
+
+    pop r14
+    pop r15
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+    ret
 
 animate:
     push rax
@@ -120,9 +173,6 @@ animate:
         call draw_map
         call draw_player
         call draw_visibility_cone
-
-        mov rax, 4
-        call draw_texture
 
         mov rax, r15
         call generate_animation_path
@@ -153,10 +203,6 @@ draw_texture:
     push r15
     push r14
 
-    ; texture_index*texture_size+j+i*texture_width
-    ; texture_index*texture_size*+j+i*texture_size*texture_cnt
-    ; (texture_index+i*texture_cnt)*texture_size+j
-
     mov r15, 0
     .outer:
         cmp r15, texture_size
@@ -168,19 +214,12 @@ draw_texture:
             jge @f
 
             mov rcx, r15
-            imul rcx, texture_cnt
-            add rcx, rax
-            imul rcx, texture_size
+            imul rcx, texture_width
             add rcx, r14
-            imul rcx, 3
-            mov rbx, 0
-            mov dl, [wall_textures+rcx]
-            mov bl, dl
-            mov dl, [wall_textures+rcx+1]
-            mov bh, dl
-            mov dl, [wall_textures+rcx+2]
-            shl edx, 16
-            add ebx, edx
+            mov rbx, rax
+            imul rbx, texture_size
+            add rcx, rbx
+            mov rbx, [textures+8*rcx]
 
             mov rcx, r15
             imul rcx, win_w
@@ -371,7 +410,8 @@ draw_vertical_segment:
     neg rbx
     add rbx, win_h/2
     sub cl, '0'
-    mov edi, [wall_colors+4*rcx]
+    imul rcx, texture_size
+    mov rdi, [textures+8*rcx]
     mov rcx, 1
     mov rdx, r15
     call draw_rectangle
@@ -448,7 +488,8 @@ draw_map:
             .good:
 
             sub al, '0'
-            mov edi, [wall_colors+4*rax]
+            imul rax, texture_size
+            mov rdi, [textures+8*rax]
             mov rax, r14
             imul rax, rect_w
             mov rbx, r15
@@ -765,15 +806,15 @@ segment readable writeable ; data
            "0     0  1110000",\
            "0     3        0",\
            "0   10000      0",\
-           "0   0   11100  0",\
-           "0   0   0      0",\
-           "0   0   1  00000",\
+           "0   3   11100  0",\
+           "5   4   0      0",\
+           "5   4   1  00000",\
            "0       1      0",\
            "2       1      0",\
            "0       0      0",\
            "0 0000000      0",\
            "0              0",\
-           "0002222222200000", 0
+           "0002222222200000"
     map.size = $ - map
 
     rect_w = win_w / (map_w*2)
@@ -804,10 +845,11 @@ segment readable writeable ; data
     float_error_msg db '[ERROR]: floating point error, crashing\n', 0
     float_error_msg.size = $ - float_error_msg - 1
 
-    wall_textures file 'walltext.ppm':0x0E
+    wall_texture_file file 'walltext.ppm':0x0E
     texture_size  = 64
     texture_cnt   = 6
     texture_width = texture_size*texture_cnt
+    textures rq texture_size*texture_width
 
     debug_str db '[DEBUG]: ', 0
     debug_str.size = $ - debug_str - 1
