@@ -7,11 +7,15 @@ macro puts_static string* {
     push rsi
     push rdi
     push rax
+    push rcx ; rcx and r11 get clobbered by syscall
+    push r11
     mov rdx, string#.size
     lea rsi, [string]
     mov rdi, 1          ; stdout
     mov rax, sys_write  ; sys_write
     syscall
+    pop r11
+    pop rcx
     pop rax
     pop rdi
     pop rsi
@@ -78,9 +82,9 @@ macro fimul_imm value* {
     add rsp, 8
 }
 
-
 ; includes
 include 'unistd64.inc'
+include 'colors.inc'
 
 ; program
 entry _start
@@ -95,7 +99,8 @@ _start:
     fldcw word [rsp]
     add rsp, 2
 
-    call color_frame_buffer
+    mov rax, clear_color
+    call fill_frame_buffer
     call draw_map
     call draw_player
     call draw_visibility_cone
@@ -115,7 +120,7 @@ draw_visibility_cone:
 
     mov r15, 0
     @@: ; loop begin
-        cmp r15, win_w
+        cmp r15, win_w/2
         jge @f
         
         fld qword [player_a]
@@ -125,7 +130,7 @@ draw_visibility_cone:
         fsubp st1, st0
         fld_imm player_fov
         fild_imm r15
-        fild_imm win_w
+        fild_imm win_w/2
         fdivp st1, st0
         fmulp st1, st0
         faddp
@@ -194,7 +199,12 @@ draw_ray:
         add rax, rbx
         mov al, [map+rax]
         cmp al, ' '
-        jne @f ; break
+        je .continue
+            mov rax, r15 ; r15 is the iterator in draw_visibility_cone
+            mov rbx, qword [.loop_iterator]
+            call draw_vertical_segment
+            jmp @f
+        .continue:
 
         fld qword [.pos_x]
         fimul_imm rect_w
@@ -204,8 +214,8 @@ draw_ray:
         fistp_reg rax
         imul rbx, win_w
         add rax, rbx
-        mov [frame_buffer+8*rax], player_color
-        
+        mov [frame_buffer+8*rax], ray_color
+
         fld qword [.loop_iterator]
         fadd qword [.loop_step]
         fstp qword [.loop_iterator]
@@ -217,9 +227,42 @@ draw_ray:
     pop rax
     ret
 
+draw_vertical_segment:
+    push rax ; pos_x : int
+    push rbx ; dist : double
+    push rcx
+    push rdx
+    push rdi
+    push r15
+    fild_imm win_h
+    fld_imm rbx
+    fdivp st1, st0
+    fistp_reg r15 ; segment_height : int
+
+    add rax, win_w/2
+    mov rbx, r15
+    shr rbx, 1
+    neg rbx
+    add rbx, win_h/2
+    mov rcx, 1
+    mov rdx, r15
+    mov rdi, wall_color
+    call draw_rectangle
+
+    pop r15
+    pop rdi
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+    ret
+
 draw_player:
     push rax
     push rbx
+    push rcx
+    push rdx
+    push rdi
 
     ; player_x * rect_w
     fld [player_x]
@@ -243,6 +286,9 @@ draw_player:
 
     call draw_rectangle
 
+    pop rdi
+    pop rdx
+    pop rcx
     pop rbx
     pop rax
     ret
@@ -252,6 +298,9 @@ draw_map:
     push r14
     push rax
     push rbx
+    push rcx
+    push rdx
+    push rdi
     mov r15, 0
     .outer:
         cmp r15, map_h
@@ -288,6 +337,9 @@ draw_map:
         jmp .outer
     .outer_end:
 
+    pop rdi
+    pop rdx
+    pop rcx
     pop rbx
     pop rax
     pop r14
@@ -297,15 +349,15 @@ draw_map:
 draw_rectangle:
     push r15
     push r14
-    push rax
-    push rbx
+    push rax ; horizontal position
+    push rbx ; vertical position
     push rcx ; width
     push rdx ; height
     push rdi ; color
     push r10
     push r11
-    mov r10, rax ; horizontal position
-    mov r11, rbx ; vertical position
+    mov r10, rax
+    mov r11, rbx
 
     mov r15, 0
     .outer:
@@ -320,7 +372,7 @@ draw_rectangle:
             add rax, r15
             mov rbx, r11
             add rbx, r14
-            imul rbx, win_h
+            imul rbx, win_w
             add rax, rbx
             mov [frame_buffer+8*rax], rdi
 
@@ -353,6 +405,8 @@ print_int:
     push rdx
     push rdi
     push rsi
+    push rcx ; rcx and r11 get clobbered by syscall
+    push r11
 
     ; TODO: handle printing 0
 
@@ -378,6 +432,8 @@ print_int:
     mov rax, sys_write
     syscall
 
+    pop r11
+    pop rcx
     pop rsi
     pop rdi
     pop rdx
@@ -391,6 +447,8 @@ write_to_file:
     push rdi
     push rsi
     push rdx
+    push rcx ; rcx and r11 get clobbered by syscall
+    push r11
 
     mov rax, sys_open
     mov rsi, 1 or 0100o ; create and write
@@ -412,6 +470,8 @@ write_to_file:
     mov rax, sys_close
     syscall
 
+    pop r11
+    pop rcx
     pop rdx
     pop rsi
     pop rdi
@@ -495,6 +555,37 @@ color_frame_buffer:
     pop r15
     ret
 
+fill_frame_buffer:
+    push r15
+    push r14
+    push rbx
+
+    mov r15, 0
+    .outer:
+        cmp r15, win_h
+        jge .outer_end
+        mov r14, 0
+        @@: ; loop begin
+            cmp r14, win_w
+            jge @f
+
+            mov rbx, r15
+            imul rbx, win_w
+            add rbx, r14
+            mov [frame_buffer+8*rbx], rax
+
+            inc r14
+            jmp @b
+        @@: ; loop end
+        inc r15
+        jmp .outer
+    .outer_end:
+
+    pop rbx
+    pop r14
+    pop r15
+    ret
+
 memset:
     push rdi
     push rcx
@@ -522,16 +613,16 @@ float_error_handler:
 
 segment readable writeable ; data
     ; constants
-    win_w = 512
+    win_w = 1024
     win_h = 512
     frame_buffer_size = win_h*win_w
     ppm_buffer_size = frame_buffer_size*3
 
     ; variables
-    frame_buffer rq frame_buffer_size ; 512*512
+    frame_buffer rq frame_buffer_size ; 1024*512
     int_buf rb 64
     int_buf.size = $ - int_buf
-    ppm_buffer rb ppm_buffer_size ; 512*512*3
+    ppm_buffer rb ppm_buffer_size ; 1024*512*3
     
     map_w = 16
     map_h = 16
@@ -553,10 +644,10 @@ segment readable writeable ; data
            "0002222222200000", 0
     map.size = $ - map
 
-    rect_w = win_w / map_w
+    rect_w = win_w / (map_w*2)
     rect_h = win_h / map_h
-    ;            red          green         blue
-    rect_color = (0 shl 0) + (255 shl 8) + (255 shl 16) ; cyan
+    rect_color = cyan
+    wall_color = cyan
 
     player_x dq 3.420
     player_y dq 2.345
@@ -564,12 +655,14 @@ segment readable writeable ; data
     player_h = 5
     player_a dq 1.523
     player_fov = 1.0471975512 ; PI/3
-    ;              red           green         blue
-    player_color = (255 shl 0) + (255 shl 8) + (255 shl 16) ; white
+    player_color = white
+
+    clear_color = white
+    ray_color = grey
 
     image_file_path db 'image_file.ppm', 0
     image_file_path.size = $ - image_file_path - 1
-    ppm_header db 'P6', 10, '512 512', 10, '255', 10, 0
+    ppm_header db 'P6', 10, '1024 512', 10, '255', 10, 0
     ppm_header.size = $ - ppm_header - 1
 
     float_error_msg db '[ERROR]: floating point error, crashing\n', 0
