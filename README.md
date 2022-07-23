@@ -22,7 +22,7 @@ At the moment I'm only building this for Linux and making Linux specific system 
     - [x] Step 3: add the player [final commit](https://github.com/xtactis/fasm-raycaster/tree/e291d6025274e64118e1df05652631491d4cca70)
     - [x] Step 4: virtual rangefinder aka first raycasting [final commit](https://github.com/xtactis/fasm-raycaster/tree/45da090e15f5b679156e99487ceeb53362b9c51b)
     - [x] Step 5: field of view [final commit](https://github.com/xtactis/fasm-raycaster/tree/f290361c7305777e8259f5bfeef1460140b40541)
-    - [ ] Step 6: 3D!
+    - [x] Step 6: 3D! [final commit](https://github.com/xtactis/fasm-raycaster/tree/b29c2f203580277508a8a46be9dd272ea08fa4a4)
     - [ ] Step 7: first animation
     - [ ] Step 8: fisheye distortion correction
 - Part 2: texturing the walls
