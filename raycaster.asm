@@ -99,18 +99,64 @@ _start:
     fldcw word [rsp]
     add rsp, 2
 
-    mov rax, clear_color
-    call fill_frame_buffer
-    call draw_map
-    call draw_player
-    call draw_visibility_cone
-
-    lea rdi, [image_file_path]
-    call write_to_file
+    call animate
 
     xor rdi, rdi ; set exit code to 0
     mov rax, sys_exit
     syscall
+
+animate:
+    mov r15, 0
+    @@:
+        cmp r15, 360
+        jge @f
+
+        mov rax, clear_color
+        call fill_frame_buffer
+        call draw_map
+        call draw_player
+        call draw_visibility_cone
+
+        mov rax, r15
+        call generate_animation_path
+
+        lea rdi, [animation_path]
+        call write_to_file
+
+        fld [player_a]
+        fldpi
+        fild_imm 180
+        fdivp st1, st0
+        faddp st1, st0
+        fstp [player_a]
+        inc r15
+        jmp @b
+    @@:
+    ret
+
+generate_animation_path:
+    push r15
+    push r14
+    push rdx
+    push rax
+
+    mov r15, animation_path+animation_path.idx_start
+    @@: ; loop begin
+        cmp rax, 0
+        je @f
+        xor rdx, rdx
+        mov r14, 10
+        div r14
+        add rdx, '0'
+        mov [r15], dl
+        dec r15
+        jmp @b
+    @@: ; loop end
+    pop rax
+    pop rdx
+    pop r14
+    pop r15
+    ret
 
 draw_visibility_cone:
     push r15
@@ -670,6 +716,9 @@ segment readable writeable ; data
 
     image_file_path db 'image_file.ppm', 0
     image_file_path.size = $ - image_file_path - 1
+    animation_path db 'animation_file_000.ppm', 0
+    animation_path.size = $ - animation_path - 1
+    animation_path.idx_start = $ - animation_path - 6
     ppm_header db 'P6', 10, '1024 512', 10, '255', 10, 0
     ppm_header.size = $ - ppm_header - 1
 
