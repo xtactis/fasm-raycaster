@@ -20,7 +20,7 @@ At the moment I'm only building this for Linux and making Linux specific system 
     - [x] Step 1: save an image to disk [final commit](https://github.com/xtactis/fasm-raycaster/tree/039691fbebe27b36a592f270c19cd438ff648f71)
     - [x] Step 2: draw the map [final commit](https://github.com/xtactis/fasm-raycaster/tree/8f43284b93cefa530d9485f72e030cdc011bf0cb)
     - [x] Step 3: add the player [final commit](https://github.com/xtactis/fasm-raycaster/tree/e291d6025274e64118e1df05652631491d4cca70)
-    - [ ] Step 4: virtual rangefinder aka first raycasting
+    - [x] Step 4: virtual rangefinder aka first raycasting [final commit](https://github.com/xtactis/fasm-raycaster/tree/45da090e15f5b679156e99487ceeb53362b9c51b)
     - [ ] Step 5: field of view
     - [ ] Step 6: 3D!
     - [ ] Step 7: first animation
