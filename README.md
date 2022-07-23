@@ -24,7 +24,7 @@ At the moment I'm only building this for Linux and making Linux specific system 
     - [x] Step 5: field of view [final commit](https://github.com/xtactis/fasm-raycaster/tree/f290361c7305777e8259f5bfeef1460140b40541)
     - [x] Step 6: 3D! [final commit](https://github.com/xtactis/fasm-raycaster/tree/b29c2f203580277508a8a46be9dd272ea08fa4a4)
     - [x] Step 7: first animation [final commit](https://github.com/xtactis/fasm-raycaster/tree/f6431d549dd591ae7bbde88aa0dedff8ea2e9861)
-    - [ ] Step 8: fisheye distortion correction
+    - [x] Step 8: fisheye distortion correction [final commit](https://github.com/xtactis/fasm-raycaster/tree/389a15ceca4ab376214f54668c3c1b5fdee72fe7)
 - Part 2: texturing the walls
     - [ ] Step 9: loading the textures
     - [ ] Step 10: rudimentary use of textures
