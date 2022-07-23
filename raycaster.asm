@@ -28,6 +28,39 @@ macro debug_reg reg* {
     pop reg
 }
 
+macro cast_float_to_int dst*, src* {
+    push src
+    fld qword [rsp]
+    fistp qword [rsp]
+    pop dst
+}
+
+macro fstp_reg reg* {
+    sub rsp, 8
+    fstp qword [rsp]
+    pop reg
+}
+
+macro fistp_reg reg* {
+    sub rsp, 8
+    fistp qword [rsp]
+    pop reg
+}
+
+macro fmul_imm value* {
+    push qword value
+    fmul qword [rsp]
+    add rsp, 8
+}
+
+macro fmul_imm_int value* {
+    push qword value
+    fild qword [rsp]
+    fmulp
+    add rsp, 8
+}
+
+
 ; includes
 include 'unistd64.inc'
 
@@ -35,10 +68,19 @@ include 'unistd64.inc'
 entry _start
 _start:
     finit
+    sub rsp, 2
+    fstcw word [rsp]               ; store control word
+    mov ax, word [rsp]
+    and ah, 11110011b               ; clear _only_ RC field
+    or  ah, 00000100b               ; set _only_ RC field (rounding to -∞)
+    mov word [rsp], ax
+    fldcw word [rsp]
+    add rsp, 2
 
     call color_frame_buffer
     call draw_map
     call draw_player
+    call draw_ray
 
     lea rdi, [image_file_path]
     call write_to_file
@@ -47,8 +89,82 @@ _start:
     mov rax, sys_exit
     syscall
 
+draw_ray:
+    push rax
+    push rbx
+
+    sub rsp, 8*5 
+    define .loop_iterator    rsp+8*4
+    define .loop_end         rsp+8*3
+    define .loop_step        rsp+8*2
+    define .pos_x            rsp+8*1
+    define .pos_y            rsp+8*0
+    mov rax, 0.0
+    mov [.loop_iterator], rax
+    mov rax, 20.0
+    mov [.loop_end], rax
+    mov rax, 0.05
+    mov [.loop_step], rax
+    
+    @@:
+        fld qword [.loop_iterator]
+        fld qword [.loop_end]
+        fcomp ; compare ST0 and ST1 which are 20.0 and 0.0 respectively
+        fstp qword [.loop_iterator]
+        fstsw ax ; copy the Status Word containing the result to AX
+        fwait
+        sahf ; transfer the condition codes to the CPU's flag register
+        jpe float_error_handler
+        jl @f
+
+        ; pos_x = player_x + .loop_iterator*cos(player_a);
+        fld [player_a]
+        fcos
+        fmul qword [.loop_iterator]
+        fadd [player_x]
+        fstp qword [.pos_x]
+        
+        ; pos_y = player_y + .loop_iterator*sin(player_a);
+        fld [player_a]
+        fsin
+        fmul qword [.loop_iterator]
+        fadd [player_y]
+        fstp qword [.pos_y]
+
+        mov rax, qword [.pos_y]
+        cast_float_to_int rax, qword [.pos_y]
+        imul rax, map_w
+        cast_float_to_int rbx, qword [.pos_x]
+        add rax, rbx
+        mov al, [map+rax]
+        cmp al, ' '
+        jne @f ; break
+
+        fld qword [.pos_x]
+        fmul_imm_int rect_w
+        fld qword [.pos_y]
+        fmul_imm_int rect_w
+        fistp_reg rbx
+        fistp_reg rax
+        imul rbx, win_w
+        add rax, rbx
+        mov [frame_buffer+8*rax], player_color
+
+        fld qword [.loop_iterator]
+        fadd qword [.loop_step]
+        fstp qword [.loop_iterator]
+        jmp @b
+    @@:
+
+    add rsp, 8*5
+    pop rbx
+    pop rax
+    ret
+
 draw_player:
     push rax
+    push rbx
+
     ; player_x * rect_w
     fld [player_x]
     sub rsp, 8 ; allocate 8 bytes for a variable
@@ -70,6 +186,8 @@ draw_player:
     mov rdi, player_color
 
     call draw_rectangle
+
+    pop rbx
     pop rax
     ret
 
@@ -93,8 +211,8 @@ draw_map:
             mov al, [map+rax]
             cmp al, ' '
             jne .good
-            inc r14
-            jmp @b
+                inc r14
+                jmp @b
             .good:
 
             mov rax, r14
@@ -340,6 +458,12 @@ memset:
     pop rdi
     ret
 
+float_error_handler:
+    puts_static float_error_msg
+    mov rdi, 1 ; set exit code to 1
+    mov rax, sys_exit
+    syscall
+
 segment readable writeable ; data
     ; constants
     win_w = 512
@@ -380,6 +504,7 @@ segment readable writeable ; data
 
     player_x dq 3.420
     player_y dq 2.345
+    player_a dq 1.523
     player_w = 5
     player_h = 5
     ;              red           green         blue
@@ -389,6 +514,9 @@ segment readable writeable ; data
     image_file_path.size = $ - image_file_path - 1
     ppm_header db 'P6', 10, '512 512', 10, '255', 10, 0
     ppm_header.size = $ - ppm_header - 1
+
+    float_error_msg db '[ERROR]: floating point error, crashing\n', 0
+    float_error_msg.size = $ - float_error_msg - 1
 
     debug_str db '[DEBUG]: ', 0
     debug_str.size = $ - debug_str - 1
