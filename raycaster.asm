@@ -32,6 +32,17 @@ macro debug_reg reg* {
     pop reg
 }
 
+macro debug_freg st* {
+    push rax
+    sub rsp, 8
+    fld st
+    fstp qword [rsp]
+    mov rax, qword [rsp]
+    debug_reg rax
+    add rsp, 8
+    pop rax
+}
+
 macro cast_float_to_int dst*, src* {
     push src
     fld qword [rsp]
@@ -165,7 +176,7 @@ animate:
     
     mov r15, 0
     @@:
-        cmp r15, 1
+        cmp r15, 360
         jge @f
 
         mov rax, clear_color
@@ -307,6 +318,7 @@ draw_ray:
     push rbx
     push rcx
     push rdx
+    push r15
     sub rsp, 8*6
     define .angle           rsp+8*5
     define .loop_iterator   rsp+8*4
@@ -332,7 +344,7 @@ draw_ray:
         fwait
         sahf ; transfer the condition codes to the CPU's flag register
         jpe float_error_handler
-        jl @f
+        jb @f
 
         ; pos_x = player_x + .loop_iterator*cos(.angle);
         fld qword [.angle]
@@ -360,6 +372,8 @@ draw_ray:
             mov rax, r15 ; r15 is the iterator in draw_visibility_cone
             mov rbx, qword [.loop_iterator]
             mov rdx, qword [.angle]
+            mov r8, qword [.pos_x]
+            mov r9, qword [.pos_y]
             call draw_vertical_segment
             jmp @f
         .continue:
@@ -381,6 +395,7 @@ draw_ray:
     @@: ; loop end
 
     add rsp, 8*6
+    pop r15
     pop rdx
     pop rcx
     pop rbx
@@ -388,12 +403,64 @@ draw_ray:
     ret
 
 draw_vertical_segment:
-    push rax ; pos_x : int
+    push r8  ; pos_x : double
+    push r9  ; pos_y : double
+    push rax ; rax is the iterator in draw_visibility_cone
     push rbx ; dist : double
     push rcx ; wall_type : char
     push rdx ; angle : double
     push rdi
-    push r15
+    push r15 
+
+    sub rsp, 8*2
+    define .hit_x           rsp+8*1
+    define .hit_y           rsp+8*0
+
+    mov qword [.hit_x], r8
+    mov qword [.hit_y], r9
+
+    fld qword [.hit_x]
+    fld st0
+    fld_imm 0.5
+    faddp
+    frndint
+    fsubp st1, st0
+    fld st0
+    fstp qword [.hit_x]
+    fabs
+    fld qword [.hit_y]
+    fld st0
+    fld_imm 0.5
+    faddp
+    frndint
+    fsubp st1, st0
+    fld st0
+    fstp qword [.hit_y]
+    fabs
+    mov rdi, rax
+    fcompp
+    fstsw ax ; copy the Status Word containing the result to AX
+    fwait
+    sahf ; transfer the condition codes to the CPU's flag register
+    mov rax, rdi
+    jpe float_error_handler
+    jb .hit_x_greater
+    .hit_y_greater:
+        fld qword [.hit_y]
+        jmp .continue
+    .hit_x_greater:
+        fld qword [.hit_x]
+    .continue:
+    fild_imm texture_size
+    fmulp st1, st0
+    fistp_reg rdi
+    cmp rdi, 0
+    jge .x_texcoord_ge
+        add rdi, texture_size
+    .x_texcoord_ge:
+
+    ; win_h dist*(ang-play_a)
+
     fild_imm win_h
     fld_imm rbx
     fld_imm rdx
@@ -404,17 +471,47 @@ draw_vertical_segment:
     fdivp st1, st0
     fistp_reg r15 ; segment_height : int
 
-    add rax, win_w/2
-    mov rbx, r15
-    shr rbx, 1
-    neg rbx
-    add rbx, win_h/2
+    add rax, win_w/2 ; pix_x
+
     sub cl, '0'
     imul rcx, texture_size
-    mov rdi, [textures+8*rcx]
-    mov rcx, 1
-    mov rdx, r15
-    call draw_rectangle
+    add rcx, rdi
+
+    mov r9, 0
+    @@:
+        cmp r9, r15
+        jge @f
+
+        mov rbx, r15
+        shr rbx, 1
+        neg rbx
+        add rbx, win_h/2
+        add rbx, r9
+        cmp rbx, 0
+        jl .continue_for
+        cmp rbx, win_h
+        jge .continue_for
+
+        mov r8, rax
+        mov rax, r9
+        imul rax, texture_size
+        mov rdx, 0 ; TODO division is weird, make sure you don't fuck this up anywhere
+        div r15 ; clobbers rdx
+        imul rax, texture_width
+        add rax, rcx
+        mov rax, [textures+8*rax]
+        xchg rax, r8
+
+        imul rbx, win_w
+        add rbx, rax
+        mov [frame_buffer+8*rbx], r8
+
+    .continue_for:
+        inc r9
+        jmp @b
+    @@:
+
+    add rsp, 8*2
 
     pop r15
     pop rdi
@@ -422,6 +519,8 @@ draw_vertical_segment:
     pop rcx
     pop rbx
     pop rax
+    pop r9
+    pop r8
     ret
 
 draw_player:
