@@ -29,7 +29,7 @@ At the moment I'm only building this for Linux and making Linux specific system 
     - [x] Step 9: loading the textures [final commit](https://github.com/xtactis/fasm-raycaster/tree/354b5870d1a1cb1ed86baf654ccc5780c46b0370)
     - [x] Step 10: rudimentary use of textures [final commit](https://github.com/xtactis/fasm-raycaster/tree/9d5da2e4b9893de73773ec238c9f1c701c395b84)
     - [x] Step 11: texturing the walls [final commit](https://github.com/xtactis/fasm-raycaster/tree/38937e1ec6313c064cb8f5be1cb9b2ef11ce1375)
-    - [ ] Step 12: refactoring time!
+    - [x] Step 12: refactoring time! [final commit](https://github.com/xtactis/fasm-raycaster/tree/b075f661bf5ef1a778ab16044cacf5a51466a091)
 - Part 3: populating the world
     - [ ] Step 13: draw monsters on the map
     - [ ] Step 14: black squares as a placeholder
