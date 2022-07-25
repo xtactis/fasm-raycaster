@@ -2,100 +2,11 @@ format ELF64 executable 3
 
 segment readable executable ; code
 
-macro puts_static string* {
-    push rdx
-    push rsi
-    push rdi
-    push rax
-    push rcx ; rcx and r11 get clobbered by syscall
-    push r11
-    mov rdx, string#.size
-    lea rsi, [string]
-    mov rdi, 1          ; stdout
-    mov rax, sys_write  ; sys_write
-    syscall
-    pop r11
-    pop rcx
-    pop rax
-    pop rdi
-    pop rsi
-    pop rdx
-}
-
-macro debug_reg reg* {
-    push reg
-    push rax
-    puts_static debug_str
-    mov rax, reg
-    call print_int
-    pop rax
-    pop reg
-}
-
-macro debug_freg st* {
-    push rax
-    sub rsp, 8
-    fld st
-    fstp qword [rsp]
-    mov rax, qword [rsp]
-    debug_reg rax
-    add rsp, 8
-    pop rax
-}
-
-macro cast_float_to_int dst*, src* {
-    push src
-    fld qword [rsp]
-    fistp qword [rsp]
-    pop dst
-}
-
-macro fstp_reg reg* {
-    sub rsp, 8
-    fstp qword [rsp]
-    pop reg
-}
-
-macro fistp_reg reg* {
-    sub rsp, 8
-    fistp qword [rsp]
-    pop reg
-}
-
-macro fld_imm value* {
-    push rax
-    mov rax, value
-    push rax
-    fld qword [rsp]
-    add rsp, 8
-    pop rax
-}
-
-macro fild_imm value* {
-    push rax
-    mov rax, value
-    push rax
-    fild qword [rsp]
-    add rsp, 8
-    pop rax
-}
-
-macro fmul_imm value* {
-    push qword value
-    fmul qword [rsp]
-    add rsp, 8
-}
-
-macro fimul_imm value* {
-    push qword value
-    fild qword [rsp]
-    fmulp
-    add rsp, 8
-}
-
 ; includes
 include 'unistd64.inc'
 include 'colors.inc'
+include 'debug.asm'
+include 'extra_flops.asm'
 
 ; program
 entry _start
@@ -858,24 +769,6 @@ fill_frame_buffer:
     pop r15
     ret
 
-memset:
-    push rdi
-    push rcx
-    push rbx
-    
-    mov rax, rcx
-    @@: ; loop begin
-        cmp rax, 0
-        jle @f
-        mov [frame_buffer+rax], rbx
-        sub rax, 1
-        jmp @b
-    @@: ; loop end
-
-    pop rbx
-    pop rcx
-    pop rdi
-    ret
 
 float_error_handler:
     puts_static float_error_msg
