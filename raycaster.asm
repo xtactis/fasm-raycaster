@@ -20,13 +20,41 @@ _start:
     mov word [rsp], ax
     fldcw word [rsp]
     add rsp, 2
+    
+    call init_sprites
 
+    ; TODO generalize image reading and maybe do it at runtime idk
     call read_texture_file
+    call read_monsters_file
     call animate
 
     xor rdi, rdi ; set exit code to 0
     mov rax, sys_exit
     syscall
+
+init_sprites:
+    push rax
+    
+    mov rax, 1.834
+    mov qword [monsters + 8*0 + sizeof.Sprite*0], rax
+    mov rax, 8.765
+    mov qword [monsters + 8*1 + sizeof.Sprite*0], rax
+    mov qword [monsters + 8*2 + sizeof.Sprite*0], 0
+
+    mov rax, 5.323
+    mov qword [monsters + 8*0 + sizeof.Sprite*1], rax
+    mov rax, 5.365
+    mov qword [monsters + 8*1 + sizeof.Sprite*1], rax
+    mov qword [monsters + 8*2 + sizeof.Sprite*1], 1
+
+    mov rax, 4.123
+    mov qword [monsters + 8*0 + sizeof.Sprite*2], rax
+    mov rax, 10.265
+    mov qword [monsters + 8*1 + sizeof.Sprite*2], rax
+    mov qword [monsters + 8*2 + sizeof.Sprite*2], 1
+
+    pop rax
+    ret
 
 read_texture_file:
     push rax
@@ -80,6 +108,61 @@ read_texture_file:
     pop rax
     ret
 
+read_monsters_file:
+    push rax
+    push rbx
+    push rcx
+    push rdx
+    push r15
+    push r14
+
+    mov r15, 0
+    .outer:
+        cmp r15, sprite_size
+        jge .outer_end
+        
+        mov r14, 0
+        @@:
+            cmp r14, sprite_width
+            jge @f
+
+            mov rcx, r15
+            imul rcx, sprite_width
+            add rcx, r14
+            imul rcx, 4
+            mov rbx, 0
+            mov dl, [monster_sprite_file+rcx]
+            mov bl, dl
+            mov dl, [monster_sprite_file+rcx+1]
+            mov bh, dl
+            mov dl, [monster_sprite_file+rcx+2]
+            shl edx, 16
+            add ebx, edx
+            mov dl, [monster_sprite_file+rcx+3]
+            shl edx, 24
+            add ebx, edx
+
+            mov rcx, r15
+            imul rcx, sprite_width
+            add rcx, r14
+            mov [sprites+8*rcx], rbx
+
+            inc r14
+            jmp @b
+        @@:
+
+        inc r15
+        jmp .outer
+    .outer_end:
+
+    pop r14
+    pop r15
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+    ret
+
 animate:
     push rax
     push rdi
@@ -87,7 +170,7 @@ animate:
     
     mov r15, 0
     @@:
-        cmp r15, 360
+        cmp r15, 1
         jge @f
 
         mov rax, clear_color
@@ -95,6 +178,9 @@ animate:
         call draw_map
         call draw_player
         call draw_visibility_cone
+        call draw_enemies
+        mov rax, 3
+        call draw_sprite
 
         mov rax, r15
         call generate_animation_path
@@ -114,6 +200,39 @@ animate:
 
     pop r15
     pop rdi
+    pop rax
+    ret
+
+draw_enemies:
+    push rax
+    push rbx
+    push rcx
+    push rdx
+    push rdi
+
+    rept 3 num:0 {
+        fld qword [monsters + 8*0 + sizeof.Sprite*num]
+        sub rsp, 8 ; allocate 8 bytes for a variable
+        mov qword [rsp], rect_w
+        fimul dword [rsp]
+        fistp qword [rsp]
+        pop rax
+        fld qword [monsters + 8*1 + sizeof.Sprite*num]
+        sub rsp, 8 ; allocate 8 bytes for a variable
+        mov qword [rsp], rect_w
+        fimul dword [rsp]
+        fistp qword [rsp]
+        pop rbx
+        mov rcx, 5
+        mov rdx, 5
+        mov rdi, monster_color
+        call draw_rectangle
+    }
+
+    pop rdi
+    pop rdx
+    pop rcx
+    pop rbx
     pop rax
     ret
 
@@ -148,6 +267,58 @@ draw_texture:
             add rcx, r14
             mov [frame_buffer+8*rcx], rbx
 
+            inc r14
+            jmp @b
+        @@:
+
+        inc r15
+        jmp .outer
+    .outer_end:
+
+    pop r14
+    pop r15
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+    ret
+
+draw_sprite:
+    push rax
+    push rbx
+    push rcx
+    push rdx
+    push r15
+    push r14
+
+    mov r15, 0
+    .outer:
+        cmp r15, sprite_size
+        jge .outer_end
+        
+        mov r14, 0
+        @@:
+            cmp r14, sprite_size
+            jge @f
+
+            mov rcx, r15
+            imul rcx, sprite_width
+            add rcx, r14
+            mov rbx, rax
+            imul rbx, sprite_size
+            add rcx, rbx
+            mov rbx, [sprites+8*rcx]
+            ; if alpha channel is 0, don't draw pixel
+            cmp rbx, 0x00FFFFFF ; this is a hacky way of checking it
+            je .continue        ; since technically the color part of
+                                ; the image could be anything
+
+            mov rcx, r15
+            imul rcx, win_w
+            add rcx, r14
+            mov [frame_buffer+8*rcx], rbx
+
+        .continue:
             inc r14
             jmp @b
         @@:
@@ -777,6 +948,17 @@ float_error_handler:
     syscall
 
 segment readable writeable ; data
+    ; structures
+    struc Sprite {
+        .x dq ?
+        .y dq ?
+        .tex_id dq ?
+    }
+    virtual at 0
+        Sprite Sprite
+        sizeof.Sprite = $ - Sprite
+    end virtual
+
     ; constants
     win_w = 1024
     win_h = 512
@@ -784,6 +966,9 @@ segment readable writeable ; data
     ppm_buffer_size = frame_buffer_size*3
 
     ; variables
+    monsters db sizeof.Sprite*3 dup(?)
+    monster_color = red
+
     frame_buffer rq frame_buffer_size ; 1024*512
     int_buf rb 64
     int_buf.size = $ - int_buf
@@ -842,6 +1027,12 @@ segment readable writeable ; data
     texture_cnt   = 6
     texture_width = texture_size*texture_cnt
     textures rq texture_size*texture_width
+
+    monster_sprite_file file 'monsters.pam':0x44
+    sprite_size   = 64
+    sprite_cnt    = 4
+    sprite_width  = sprite_size*sprite_cnt
+    sprites rq sprite_size*sprite_width
 
     debug_str db '[DEBUG]: ', 0
     debug_str.size = $ - debug_str - 1
