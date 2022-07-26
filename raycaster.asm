@@ -178,7 +178,8 @@ animate:
         call draw_map
         call draw_player
         call draw_visibility_cone
-        call draw_enemies
+        call draw_enemies_map
+        call draw_sprites
         mov rax, 3
         call draw_sprite
 
@@ -203,21 +204,201 @@ animate:
     pop rax
     ret
 
-draw_enemies:
+draw_sprites:
     push rax
     push rbx
     push rcx
     push rdx
     push rdi
+    push r15
+    push r14
+    push r13
+    push r8
 
-    rept 3 num:0 {
-        fld qword [monsters + 8*0 + sizeof.Sprite*num]
+    mov r15, 0
+    @@:
+        cmp r15, 3
+        jge @f
+
+        mov rax, r15
+        imul rax, sizeof.Sprite
+        add rax, 8*1
+        fld qword [monsters + rax]
+        fld qword [player_y]
+        fsubp
+        
+        mov rax, r15
+        imul rax, sizeof.Sprite
+        add rax, 8*0
+        fld qword [monsters + rax]
+        fld qword [player_x]
+        fsubp
+
+        fpatan
+        .loopsub:
+            ; loop and subtract 2pi
+            fld st0
+            fld qword [player_a]
+            fsubp
+            fldpi
+            fcompp
+            fstsw ax ; copy the Status Word containing the result to AX
+            fwait
+            sahf ; transfer the condition codes to the CPU's flag register
+            jpe float_error_handler
+            jnb .endsub
+            fldpi
+            fldpi
+            faddp
+            fsubp
+            jmp .loopsub
+        .endsub:
+        .loopadd:
+            ; loop and add 2pi
+            fld st0
+            fld qword [player_a]
+            fsubp
+            fldpi
+            fchs
+            fcompp
+            fstsw ax ; copy the Status Word containing the result to AX
+            fwait
+            sahf ; transfer the condition codes to the CPU's flag register
+            jpe float_error_handler
+            jb .endadd
+            fldpi
+            fldpi
+            faddp
+            faddp
+            jmp .loopadd
+        .endadd:
+        ; st0 is now sprite_dir
+        fld [player_x]
+        mov rax, r15
+        imul rax, sizeof.Sprite
+        add rax, 8*0
+        fld qword [monsters + rax]
+        fsubp
+        fld st0
+        fmulp
+        fld [player_y]
+        mov rax, r15
+        imul rax, sizeof.Sprite
+        add rax, 8*1
+        fld qword [monsters + rax]
+        fsubp
+        fld st0
+        fmulp
+        faddp
+        fsqrt ; sprite_dist
+        ; st0 is sprite_dist, st1 is sprite_dir
+        fild_imm win_h
+        fxch
+        fdivp
+        fistp_reg rax
+        cmp rax, 2000
+        jl .min_done
+        .min1000:
+            mov rax, 2000
+        .min_done:
+        ; st0 is sprite_dir, rax is sprite_screen_size
+        fld [player_a]
+        fsubp
+        fild_imm (win_w/2)
+        fmulp
+        fld_imm player_fov
+        fdivp
+        fistp_reg rbx
+        add rbx, (win_w/2)/2
+        mov rcx, rax
+        shr rcx, 1
+        sub rbx, rcx
+        neg rcx
+        add rcx, win_h/2
+        ; rax is sprite_screen_size, rbx is h_offset, rcx is v_offset
+
+        mov r14, 0
+        .h_loop:
+            cmp r14, rax
+            jge .h_end
+
+            mov rdx, rbx
+            add rdx, r14
+            cmp rdx, 0
+            jl .h_continue
+            cmp rdx, win_w/2
+            jge .h_continue
+
+            add rdx, win_w/2
+
+            mov r13, 0
+            .v_loop:
+                cmp r13, rax
+                jge .v_end
+
+                mov rdi, rcx
+                add rdi, r13
+                cmp rdi, 0
+                jl .v_continue
+                cmp rdi, win_h
+                jge .v_continue
+
+                imul rdi, win_w
+                add rdi, rdx
+                ; (win_w/2 + h_offset+r14)+(v_offset+r13)*win_w
+                mov [frame_buffer + 8*rdi], black
+
+            .v_continue:
+                inc r13
+                jmp .v_loop
+            .v_end:
+
+        .h_continue:
+            inc r14
+            jmp .h_loop
+        .h_end:
+
+        inc r15
+        jmp @b
+    @@:
+
+    pop r8
+    pop r13
+    pop r14
+    pop r15
+    pop rdi
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+    ret
+
+draw_enemies_map:
+    push rax
+    push rbx
+    push rcx
+    push rdx
+    push rdi
+    push r15
+
+    mov r15, 0
+    @@:
+        cmp r15, monsters_count
+        jge @f
+
+        mov rax, r15
+        imul rax, sizeof.Sprite
+        add rax, 8*0
+        fld qword [monsters + rax]
         sub rsp, 8 ; allocate 8 bytes for a variable
         mov qword [rsp], rect_w
         fimul dword [rsp]
         fistp qword [rsp]
         pop rax
-        fld qword [monsters + 8*1 + sizeof.Sprite*num]
+        mov rbx, r15
+        imul rbx, sizeof.Sprite
+        add rbx, 8*1
+        fld qword [monsters + rbx]
         sub rsp, 8 ; allocate 8 bytes for a variable
         mov qword [rsp], rect_w
         fimul dword [rsp]
@@ -227,8 +408,12 @@ draw_enemies:
         mov rdx, 5
         mov rdi, monster_color
         call draw_rectangle
-    }
 
+        inc r15
+        jmp @b
+    @@:
+
+    pop r15
     pop rdi
     pop rdx
     pop rcx
@@ -966,7 +1151,8 @@ segment readable writeable ; data
     ppm_buffer_size = frame_buffer_size*3
 
     ; variables
-    monsters db sizeof.Sprite*3 dup(?)
+    monsters_count = 3
+    monsters db sizeof.Sprite*monsters_count dup(?)
     monster_color = red
 
     frame_buffer rq frame_buffer_size ; 1024*512
@@ -1000,7 +1186,7 @@ segment readable writeable ; data
     wall_colors dd light_beige, dark_purple, dark_blue, dark_red
     wall_colors.length = $ - wall_colors
 
-    player_x dq 3.420
+    player_x dq 3.456
     player_y dq 2.345
     player_w = 5
     player_h = 5
