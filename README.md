@@ -11,8 +11,9 @@ At the moment I'm only building this for Linux and making Linux specific system 
 1. Download [FASM](https://flatassembler.net/download.php)
 2. Unpack it somewhere where you can access fasm.x64
 3. Run `fasm.x64 raycaster.asm`
-4. Check that the `image_file.ppm` file contains something interesting
-5. T-that's it.
+4. Run `./raycaster`
+5. Check that the `image_file.ppm` file contains something interesting
+6. T-that's it.
 
 ## Progress
 
