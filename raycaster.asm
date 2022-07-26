@@ -292,7 +292,7 @@ draw_sprites:
         faddp
         fsqrt ; sprite_dist
         ; st0 is sprite_dist, st1 is sprite_dir
-        fild_imm win_h
+        fild_imm view_h
         fxch
         fdivp
         fistp_reg rax
@@ -304,17 +304,17 @@ draw_sprites:
         ; st0 is sprite_dir, rax is sprite_screen_size
         fld [player_a]
         fsubp
-        fild_imm (win_w/2)
+        fild_imm (view_w)
         fmulp
         fld_imm player_fov
         fdivp
         fistp_reg rbx
-        add rbx, (win_w/2)/2
+        add rbx, (view_w)/2
         mov rcx, rax
         shr rcx, 1
         sub rbx, rcx
         neg rcx
-        add rcx, win_h/2
+        add rcx, view_h/2
         ; rax is sprite_screen_size, rbx is h_offset, rcx is v_offset
 
         mov r14, 0
@@ -326,10 +326,10 @@ draw_sprites:
             add rdx, r14
             cmp rdx, 0
             jl .h_continue
-            cmp rdx, win_w/2
+            cmp rdx, view_w
             jge .h_continue
 
-            add rdx, win_w/2
+            add rdx, view_w
 
             mov r13, 0
             .v_loop:
@@ -340,12 +340,12 @@ draw_sprites:
                 add rdi, r13
                 cmp rdi, 0
                 jl .v_continue
-                cmp rdi, win_h
+                cmp rdi, view_h
                 jge .v_continue
 
                 imul rdi, win_w
                 add rdi, rdx
-                ; (win_w/2 + h_offset+r14)+(v_offset+r13)*win_w
+                ; (view_w + h_offset+r14)+(v_offset+r13)*win_w
                 mov [frame_buffer + 8*rdi], black
 
             .v_continue:
@@ -552,7 +552,7 @@ draw_visibility_cone:
 
     mov r15, 0
     @@: ; loop begin
-        cmp r15, win_w/2
+        cmp r15, view_w
         jge @f
         
         fld qword [player_a]
@@ -562,7 +562,7 @@ draw_visibility_cone:
         fsubp st1, st0
         fld_imm player_fov
         fild_imm r15
-        fild_imm win_w/2
+        fild_imm view_w
         fdivp st1, st0
         fmulp st1, st0
         faddp
@@ -726,9 +726,9 @@ draw_vertical_segment:
         add rdi, texture_size
     .x_texcoord_ge:
 
-    ; win_h dist*(ang-play_a)
+    ; view_h dist*(ang-play_a)
 
-    fild_imm win_h
+    fild_imm view_h
     fld_imm rbx
     fld_imm rdx
     fld qword [player_a]
@@ -738,7 +738,7 @@ draw_vertical_segment:
     fdivp st1, st0
     fistp_reg r15 ; segment_height : int
 
-    add rax, win_w/2 ; pix_x
+    add rax, view_w ; pix_x
 
     sub cl, '0'
     imul rcx, texture_size
@@ -752,11 +752,11 @@ draw_vertical_segment:
         mov rbx, r15
         shr rbx, 1
         neg rbx
-        add rbx, win_h/2
+        add rbx, view_h/2
         add rbx, r9
         cmp rbx, 0
         jl .continue_for
-        cmp rbx, win_h
+        cmp rbx, view_h
         jge .continue_for
 
         mov r8, rax
@@ -1053,7 +1053,7 @@ color_frame_buffer:
 
     mov r15, 0
     .outer:
-        cmp r15, win_h
+        cmp r15, view_h
         jge .outer_end
         mov r14, 0
         @@: ; loop begin
@@ -1062,7 +1062,7 @@ color_frame_buffer:
 
             mov rax, r15
             imul rax, 255
-            mov rbx, win_h
+            mov rbx, view_h
             xor rdx, rdx
             div rbx
             mov r13, rax
@@ -1101,7 +1101,7 @@ fill_frame_buffer:
 
     mov r15, 0
     .outer:
-        cmp r15, win_h
+        cmp r15, view_h
         jge .outer_end
         mov r14, 0
         @@: ; loop begin
@@ -1147,6 +1147,8 @@ segment readable writeable ; data
     ; constants
     win_w = 1024
     win_h = 512
+    view_w = win_w/2
+    view_h = win_h
     frame_buffer_size = win_h*win_w
     ppm_buffer_size = frame_buffer_size*3
 
@@ -1181,7 +1183,7 @@ segment readable writeable ; data
     map.size = $ - map
 
     rect_w = win_w / (map_w*2)
-    rect_h = win_h / map_h
+    rect_h = view_h / map_h
     rect_color = cyan
     wall_colors dd light_beige, dark_purple, dark_blue, dark_red
     wall_colors.length = $ - wall_colors
