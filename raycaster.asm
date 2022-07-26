@@ -85,11 +85,11 @@ read_texture_file:
             add rcx, r14
             imul rcx, 3
             mov rbx, 0
-            mov dl, [wall_texture_file+rcx]
+            mov dl, byte [wall_texture_file+rcx]
             mov bl, dl
-            mov dl, [wall_texture_file+rcx+1]
+            mov dl, byte [wall_texture_file+rcx+1]
             mov bh, dl
-            mov dl, [wall_texture_file+rcx+2]
+            mov dl, byte [wall_texture_file+rcx+2]
             shl edx, 16
             add ebx, edx
 
@@ -135,23 +135,14 @@ read_monsters_file:
             mov rcx, r15
             imul rcx, sprite_width
             add rcx, r14
-            imul rcx, 4
             mov rbx, 0
-            mov dl, [monster_sprite_file+rcx]
-            mov bl, dl
-            mov dl, [monster_sprite_file+rcx+1]
-            mov bh, dl
-            mov dl, [monster_sprite_file+rcx+2]
-            shl edx, 16
-            add ebx, edx
-            mov dl, [monster_sprite_file+rcx+3]
-            shl edx, 24
-            add ebx, edx
+            mov rdx, 0
+            mov ebx, dword [monster_sprite_file+4*rcx] 
 
             mov rcx, r15
             imul rcx, sprite_width
             add rcx, r14
-            mov [sprites+8*rcx], rbx
+            mov dword [sprites+8*rcx], ebx
 
             inc r14
             jmp @b
@@ -394,16 +385,19 @@ draw_sprites:
                     imul r11, sprite_width
                     add r11, r10
                     add r11, r9
-                    mov r10, [sprites+8*r11]
+                    mov r10, qword [sprites+8*r11]
                 pop rdx
                 pop rax
 
                 ; if alpha channel is 0, don't draw pixel
-                cmp r10, 0x00FFFFFF  ; this is a hacky way of checking it
-                je .v_continue      ; since technically the color part of
-                                    ; the pixel could be anything
+                push rax
+                    mov rax, r10
+                    shr rax, 24
+                    cmp al, 0
+                pop rax
+                je .v_continue
             
-                mov [frame_buffer + 8*rdi], r10
+                mov dword [frame_buffer + 8*rdi], r10d
 
             .v_continue:
                 inc r13
