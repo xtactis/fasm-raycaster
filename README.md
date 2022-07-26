@@ -35,7 +35,7 @@ At the moment I'm only building this for Linux and making Linux specific system 
     - [x] Step 13: draw monsters on the map [final commit](https://github.com/xtactis/fasm-raycaster/tree/ba386f8586474f59be61095794bf8d8fbfbb0026)
     - [x] Step 14: black squares as a placeholder [final commit](https://github.com/xtactis/fasm-raycaster/tree/a32477711614793c8934e2e1323108300e208c46)
     - [x] Step 15: depth map [final map](https://github.com/xtactis/fasm-raycaster/tree/81008bf0ee0acde0b44c4767b7d58db6cb09c6f1)
-    - [ ] Step 16: one more problem with the sprites
+    - [x] Step 16: one more problem with the sprites [final commit](https://github.com/xtactis/fasm-raycaster/tree/2ffb7aa57ecee6b3210014b8fa083f8b4d6b4270)
     - [ ] Step 17: sort the sprites
 - Part 4: SDL
     - [ ] Step 18: instead of SDL, I'll likely try to link againt opengl or sth more directly, I have no idea at the present moment how to work with graphics from FASM, so this will be interesing.
