@@ -218,6 +218,9 @@ draw_sprites:
     push r9
     push r8
 
+    sub rsp, 8
+    define .sprite_dist rsp+8*0
+
     mov r15, 0
     @@:
         cmp r15, 3
@@ -295,6 +298,7 @@ draw_sprites:
         faddp
         fsqrt ; sprite_dist
         ; st0 is sprite_dist, st1 is sprite_dir
+        fst qword [.sprite_dist]
         fild_imm view_h
         fxch
         fdivp
@@ -320,6 +324,7 @@ draw_sprites:
         add rcx, view_h/2
         ; rax is sprite_screen_size, rbx is h_offset, rcx is v_offset
 
+        fld qword [.sprite_dist]
         mov r14, 0
         .h_loop:
             cmp r14, rax
@@ -331,6 +336,16 @@ draw_sprites:
             jl .h_continue
             cmp rdx, view_w
             jge .h_continue
+
+            push rax
+                fld qword [depth_map+8*rdx]
+                fcomp
+                fstsw ax ; copy the Status Word containing the result to r8w
+                fwait
+                sahf ; transfer the condition codes to the CPU's flag register
+            pop rax
+            jpe float_error_handler
+            jb .h_continue
 
             add rdx, view_w
 
@@ -379,7 +394,6 @@ draw_sprites:
                 pop rdx
                 pop rax
 
-
                 ; if alpha channel is 0, don't draw pixel
                 cmp r10, 0x00FFFFFF  ; this is a hacky way of checking it
                 je .v_continue      ; since technically the color part of
@@ -400,6 +414,8 @@ draw_sprites:
         inc r15
         jmp @b
     @@:
+
+    add rsp, 8*1
 
     pop r8
     pop r9
