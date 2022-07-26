@@ -180,8 +180,6 @@ animate:
         call draw_visibility_cone
         call draw_enemies_map
         call draw_sprites
-        mov rax, 3
-        call draw_sprite
 
         mov rax, r15
         call generate_animation_path
@@ -510,58 +508,6 @@ draw_texture:
             add rcx, r14
             mov [frame_buffer+8*rcx], rbx
 
-            inc r14
-            jmp @b
-        @@:
-
-        inc r15
-        jmp .outer
-    .outer_end:
-
-    pop r14
-    pop r15
-    pop rdx
-    pop rcx
-    pop rbx
-    pop rax
-    ret
-
-draw_sprite:
-    push rax
-    push rbx
-    push rcx
-    push rdx
-    push r15
-    push r14
-
-    mov r15, 0
-    .outer:
-        cmp r15, sprite_size
-        jge .outer_end
-        
-        mov r14, 0
-        @@:
-            cmp r14, sprite_size
-            jge @f
-
-            mov rcx, r15
-            imul rcx, sprite_width
-            add rcx, r14
-            mov rbx, rax
-            imul rbx, sprite_size
-            add rcx, rbx
-            mov rbx, [sprites+8*rcx]
-            ; if alpha channel is 0, don't draw pixel
-            cmp rbx, 0x00FFFFFF ; this is a hacky way of checking it
-            je .continue        ; since technically the color part of
-                                ; the image could be anything
-
-            mov rcx, r15
-            imul rcx, win_w
-            add rcx, r14
-            mov [frame_buffer+8*rcx], rbx
-
-        .continue:
             inc r14
             jmp @b
         @@:
