@@ -213,6 +213,9 @@ draw_sprites:
     push r15
     push r14
     push r13
+    push r11
+    push r10
+    push r9
     push r8
 
     mov r15, 0
@@ -346,7 +349,43 @@ draw_sprites:
                 imul rdi, win_w
                 add rdi, rdx
                 ; (view_w + h_offset+r14)+(v_offset+r13)*win_w
-                mov [frame_buffer + 8*rdi], black
+
+                push rax
+                push rdx
+                    mov r8, rax
+
+                    mov rdx, 0
+                    mov rax, r14
+                    imul rax, sprite_size
+                    div r8
+                    mov r10, rax
+
+                    mov rdx, 0
+                    mov rax, r13
+                    imul rax, sprite_size
+                    div r8
+                    mov r11, rax
+
+                    mov rax, r15
+                    imul rax, sizeof.Sprite
+                    add rax, 8*2
+                    mov r9, qword [monsters + rax]
+                    imul r9, sprite_size
+
+                    imul r11, sprite_width
+                    add r11, r10
+                    add r11, r9
+                    mov r10, [sprites+8*r11]
+                pop rdx
+                pop rax
+
+
+                ; if alpha channel is 0, don't draw pixel
+                cmp r10, 0x00FFFFFF  ; this is a hacky way of checking it
+                je .v_continue      ; since technically the color part of
+                                    ; the pixel could be anything
+            
+                mov [frame_buffer + 8*rdi], r10
 
             .v_continue:
                 inc r13
@@ -363,6 +402,9 @@ draw_sprites:
     @@:
 
     pop r8
+    pop r9
+    pop r10
+    pop r11
     pop r13
     pop r14
     pop r15
@@ -638,6 +680,7 @@ draw_ray:
             mov cl, al
             mov rax, r15 ; r15 is the iterator in draw_visibility_cone
             mov rbx, qword [.loop_iterator]
+            mov [depth_map+8*r15], rbx
             mov rdx, qword [.angle]
             mov r8, qword [.pos_x]
             mov r9, qword [.pos_y]
@@ -1181,6 +1224,9 @@ segment readable writeable ; data
            "0              0",\
            "0002222222200000"
     map.size = $ - map
+    
+    depth_map.size = view_w
+    depth_map rq depth_map.size
 
     rect_w = win_w / (map_w*2)
     rect_h = view_h / map_h
