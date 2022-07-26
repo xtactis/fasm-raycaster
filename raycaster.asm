@@ -35,23 +35,29 @@ _start:
 init_sprites:
     push rax
     
-    mov rax, 1.834
+    mov rax, 3.523
     mov qword [monsters + 8*0 + sizeof.Sprite*0], rax
-    mov rax, 8.765
+    mov rax, 3.812
     mov qword [monsters + 8*1 + sizeof.Sprite*0], rax
-    mov qword [monsters + 8*2 + sizeof.Sprite*0], 0
+    mov qword [monsters + 8*2 + sizeof.Sprite*0], 2
+
+    mov rax, 1.834
+    mov qword [monsters + 8*0 + sizeof.Sprite*1], rax
+    mov rax, 8.765
+    mov qword [monsters + 8*1 + sizeof.Sprite*1], rax
+    mov qword [monsters + 8*2 + sizeof.Sprite*1], 0
 
     mov rax, 5.323
-    mov qword [monsters + 8*0 + sizeof.Sprite*1], rax
-    mov rax, 5.365
-    mov qword [monsters + 8*1 + sizeof.Sprite*1], rax
-    mov qword [monsters + 8*2 + sizeof.Sprite*1], 1
-
-    mov rax, 4.123
     mov qword [monsters + 8*0 + sizeof.Sprite*2], rax
-    mov rax, 10.265
+    mov rax, 5.365
     mov qword [monsters + 8*1 + sizeof.Sprite*2], rax
     mov qword [monsters + 8*2 + sizeof.Sprite*2], 1
+
+    mov rax, 4.123
+    mov qword [monsters + 8*0 + sizeof.Sprite*3], rax
+    mov rax, 10.265
+    mov qword [monsters + 8*1 + sizeof.Sprite*3], rax
+    mov qword [monsters + 8*2 + sizeof.Sprite*3], 1
 
     pop rax
     ret
@@ -221,7 +227,7 @@ draw_sprites:
 
     mov r15, 0
     @@:
-        cmp r15, 3
+        cmp r15, monsters_count
         jge @f
 
         mov rax, r15
@@ -1158,7 +1164,7 @@ segment readable writeable ; data
     ppm_buffer_size = frame_buffer_size*3
 
     ; variables
-    monsters_count = 3
+    monsters_count = 4
     monsters db sizeof.Sprite*monsters_count dup(?)
     monster_color = red
 
