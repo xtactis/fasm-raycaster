@@ -167,7 +167,7 @@ animate:
     
     mov r15, 0
     @@:
-        cmp r15, 1
+        cmp r15, 360
         jge @f
 
         mov rax, clear_color
@@ -222,8 +222,7 @@ draw_sprites:
         cmp r15, sprite_depth_map.size
         jge @f
 
-        ;mov rax, 0x7FF0000000000000
-        mov rax, 1000.0
+        mov rax, 0x7FF0000000000000 ; +inf
         mov [sprite_depth_map+r15*8], rax
 
         inc r15
@@ -437,6 +436,7 @@ draw_sprites:
             inc r14
             jmp .h_loop
         .h_end:
+        fstp st0
 
         inc r15
         jmp @b
