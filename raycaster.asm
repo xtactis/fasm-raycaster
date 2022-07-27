@@ -216,6 +216,20 @@ draw_sprites:
     sub rsp, 8
     define .sprite_dist rsp+8*0
 
+    ; clear sprite_depth_map
+    mov r15, 0
+    @@:
+        cmp r15, sprite_depth_map.size
+        jge @f
+
+        ;mov rax, 0x7FF0000000000000
+        mov rax, 1000.0
+        mov [sprite_depth_map+r15*8], rax
+
+        inc r15
+        jmp @b
+    @@:
+
     mov r15, 0
     @@:
         cmp r15, monsters_count
@@ -364,6 +378,18 @@ draw_sprites:
                 push rdx
                     mov r8, rax
 
+                    fld qword [sprite_depth_map+8*rdi]
+                    fcomp
+                    fstsw ax ; copy the Status Word containing the result to r8w
+                    fwait
+                    sahf ; transfer the condition codes to the CPU's flag register
+                    jpe float_error_handler
+                    jnb .good
+                    pop rdx
+                    pop rax
+                    jmp .v_continue
+                .good:
+
                     mov rdx, 0
                     mov rax, r14
                     imul rax, sprite_size
@@ -396,8 +422,11 @@ draw_sprites:
                     cmp al, 0
                 pop rax
                 je .v_continue
-            
+
                 mov dword [frame_buffer + 8*rdi], r10d
+
+                mov r10, qword [.sprite_dist]
+                mov qword [sprite_depth_map + 8*rdi], r10
 
             .v_continue:
                 inc r13
@@ -1189,6 +1218,9 @@ segment readable writeable ; data
     
     depth_map.size = view_w
     depth_map rq depth_map.size
+
+    sprite_depth_map.size = win_w*win_h
+    sprite_depth_map rq sprite_depth_map.size
 
     rect_w = win_w / (map_w*2)
     rect_h = view_h / map_h
