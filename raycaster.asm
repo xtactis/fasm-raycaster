@@ -222,7 +222,8 @@ draw_sprites:
         cmp r15, sprite_depth_map.size
         jge @f
 
-        mov rax, 0x7ff0000000000000
+        ;mov rax, 0x7FF0000000000000
+        mov rax, 1000.0
         mov [sprite_depth_map+r15*8], rax
 
         inc r15
@@ -373,20 +374,21 @@ draw_sprites:
                 add rdi, rdx
                 ; (view_w + h_offset+r14)+(v_offset+r13)*win_w
 
-
                 push rax
                 push rdx
-                    debug_reg rdx
-                    add rdx, r13
-                    fld qword [sprite_depth_map+8*rdx]
+                    mov r8, rax
+
+                    fld qword [sprite_depth_map+8*rdi]
                     fcomp
                     fstsw ax ; copy the Status Word containing the result to r8w
                     fwait
                     sahf ; transfer the condition codes to the CPU's flag register
                     jpe float_error_handler
-                    jb .v_continue
-
-                    mov r8, rax
+                    jnb .good
+                    pop rdx
+                    pop rax
+                    jmp .v_continue
+                .good:
 
                     mov rdx, 0
                     mov rax, r14
